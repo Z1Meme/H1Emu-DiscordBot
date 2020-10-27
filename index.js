@@ -5,7 +5,6 @@ const fs = require('fs');
 const virustotalAPIKey = fs.readFileSync("virustotalAPIKey.txt",{encoding:"utf-8"});//loads virustotal API key from file
 //mongo shit
 const mongoose = require('mongoose');
-const { Http2ServerRequest } = require('http2');
 
 //mongoose.connect('mongodb://localhost/Z1NewHopeData',{useNewUrlParser: true, useUnifiedTopology: true});
 //const db = mongoose.connection;
