@@ -1,0 +1,4 @@
+{
+    "allowedFiletypes": ["png", "jpeg", "jpg", "gif", "txt", "log", "json", "ini", "xml"],
+    "disallowedFiletypes": ["exe", "dll", "zip", "rar", "bat", "lua"]
+}
