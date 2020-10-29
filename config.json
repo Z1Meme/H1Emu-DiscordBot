@@ -1,0 +1,8 @@
+{
+    "allowedFiletypes": ["png", "jpeg", "jpg", "gif", "txt", "log", "json", "ini", "xml", "mp4", "mp3"],
+    "disallowedFiletypes": ["exe", "dll", "zip", "rar", "bat", "lua"],
+    "virustotalFiletypes": ["exe", "dll", "zip", "rar"],
+    "blacklistedWords": ["nigger", "nigga", "faggot"],
+    "immuneUsers": ["158678807929159682"],
+    "immuneRoles": []
+}
