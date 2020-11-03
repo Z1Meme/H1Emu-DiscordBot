@@ -1,10 +1,43 @@
 {
-    "allowedFiletypes": ["png", "jpeg", "jpg", "gif", "txt", "log", "json", "ini", "xml", "mp4", "mp3"],
-    "disallowedFiletypes": ["exe", "dll", "zip", "rar", "bat", "lua"],
-    "virustotalFiletypes": ["exe", "dll", "zip", "rar"],
-    "blacklistedWords": ["nigger", "nigga", "faggot"],
-    "immuneUsers": [],
-    "immuneRoles": [],
-    "virustotalRetryTime": 10,
-    "virustotalRetryCount": 3
+  "prefix": "z1",
+  "allowedFiletypes": [
+    "png",
+    "jpeg",
+    "jpg",
+    "gif",
+    "txt",
+    "log",
+    "json",
+    "ini",
+    "xml",
+    "mp4",
+    "mp3"
+  ],
+  "disallowedFiletypes": [
+    "exe",
+    "dll",
+    "zip",
+    "rar",
+    "bat",
+    "lua"
+  ],
+  "virustotalFiletypes": [
+    "exe",
+    "dll",
+    "rar",
+    "zip"
+  ],
+  "blacklistedWords": [
+    "nigger",
+    "nigga",
+    "faggot"
+  ],
+  "immuneUsers": [],
+  "immuneRoles": [
+    "656333973496004648"
+  ],
+  "virustotalRetryTime": 10,
+  "virustotalRetryCount": 20,
+  "virustotalScanningEnabled": true,
+  "maxCharactersPerMessage": 500
 }
