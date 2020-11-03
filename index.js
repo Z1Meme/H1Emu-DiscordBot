@@ -94,8 +94,100 @@ client.on('message', (msg) => {
             //commands tested for here use 'content' in place of 'msg.content'
             //commands can be called within a DM, be careful when trying to access guild
 
-            if(content[1] === 'ping'){
-                msg.reply(`pong! ${client.ws.ping}ms`);
+            switch(content[1]){
+                //todo: clean this up with a commands.js file, each command should also have information that can be utilized by a 'help command'
+                //todo: delete msg and self-destruct bot messages after x seconds
+                
+                case 'ping':
+                    msg.reply(`pong! ${client.ws.ping}ms`);
+                    break;
+                case 'help':
+                case 'commands':
+                    msg.reply('todo');
+                    break;
+                case 'addallowedfile':
+
+                    if(!content[2] || content[2] === '.'){
+                        msg.reply('missing parameter \'filetype\'');
+                        return;
+                    }
+                    let filetype = content[2].split('.')[content[2].split('.').length-1];//removes the . from filetype
+                    if(config.allowedFiletypes.includes(filetype)){
+                        msg.reply(`${filetype} is already a part of allowedFileTypes!`);
+                        return;
+                    }   
+                    
+                    config.allowedFiletypes.push(filetype)
+                    updateConfig((err)=>{
+                        if(err){
+                            msg.reply('An error occured when saving config.json, unable to save changes.');
+                        }else{
+                            msg.reply(`Filetype ${filetype} was added to allowedFileTypes`);
+                        }
+                    });
+                    break;
+                case 'removeallowedfile':
+                    msg.reply('todo');
+                    break;
+                case 'adddisallowedfile':
+                    msg.reply('todo');
+                    break;
+                case 'removedisallowedfile':
+                    msg.reply('todo');
+                    break;
+                case 'addvirustotalfile':
+                    msg.reply('todo');
+                    break;
+                case 'removevirustotalfile':
+                    msg.reply('todo');
+                    break;
+                case 'addblacklistedword':
+                    if(!content[2]){
+                        msg.reply('missing parameter \'blacklistedWord\'');
+                        return;
+                    }
+                    if(config.blacklistedWords.includes(content[2])){
+                        msg.reply(`'${content[2]}' is already a part of blacklistedWords!`);
+                    }else{
+                        config.blacklistedWords.push(content[2]);
+                        updateConfig((err)=>{
+                            if(err){
+                                msg.reply('An error occured when saving config.json, unable to save changes.');
+                            }else{
+                                msg.reply(`'${content[2]}' was removed from blacklistedWords`);
+                            }
+                        });
+                    }
+
+                    break;
+                case 'removeblacklistedword':
+                    if(!content[2]){
+                        msg.reply('missing parameter \'blacklistedWord\'');
+                        return;
+                    }
+                    let found = false;
+                    for( var i = 0; i < config.blacklistedWords.length; i++){ 
+                        if ( config.blacklistedWords[i] === content[2]) { 
+                            found = true;
+                            config.blacklistedWords.splice(i, 1);
+                            updateConfig((err)=>{
+                                if(err){
+                                    msg.reply('An error occured when saving config.json, unable to save changes.');
+                                }else{
+                                    msg.reply(`'${content[2]}' was removed from blacklistedWords`);
+                                }
+                            });
+                            break;
+                        }
+                    }
+                    if(!found){
+                        msg.reply(`'${content[2]}' was not found in blacklistedWords`);
+                    }
+                    break;
+                default:
+                    msg.reply('command not found');//todo: replace with better looking self-descructing message later
+                    
+                    break;
             }
 
         }

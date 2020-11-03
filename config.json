@@ -19,18 +19,20 @@
     "zip",
     "rar",
     "bat",
-    "lua"
+    "lua",
+    "7z"
   ],
   "virustotalFiletypes": [
     "exe",
     "dll",
     "rar",
-    "zip"
+    "zip",
+    "7z"
   ],
   "blacklistedWords": [
-    "nigger",
     "nigga",
-    "faggot"
+    "faggot",
+    "nigger"
   ],
   "immuneUsers": [],
   "immuneRoles": [
