@@ -295,7 +295,7 @@ async function virustotal(message, dir) {
 								clearInterval(interval);
 							}
 						});
-					}, config.virustotalRetryTime*1000);
+					}, config.virustotalRetryTime * 1000);
 				}
             });
             // edit the multiplied amount to change the time relative to filesize to wait

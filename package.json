@@ -1,0 +1,14 @@
+{
+    "name": "z1newhope-discordbot",
+    "version": "1.0.0",
+    "description": "Discord moderation bot for Z1NewHope project.",
+    "main": "index.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "start": "node .",
+        "lint": "eslint ."
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC"
+  }
