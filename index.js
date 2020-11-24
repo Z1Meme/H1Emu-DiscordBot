@@ -71,7 +71,7 @@ if(!process.env.DiscordToken){
 
 if(!process.env.virustotalAPIKey) console.log('You must setup the virustotal API key before using');
 
-function checkFile(dir, data, msg) {
+function checkFileExists(dir, data, msg) {
     // checks if file exists, create it if not
 	try {
 		if (fs.existsSync(`./${dir}`)) {
@@ -103,7 +103,6 @@ const enums = {
 const virustotalAPIKey = process.env.virustotalAPIKey;
 // loads config from config.json file
 const config = JSON.parse(fs.readFileSync('./config.json', { encoding:'utf-8' }));
-const prefix = config.prefix;
 
 // updates config.json with the contents of 'config'
 function updateConfig(_callback) {
@@ -125,112 +124,137 @@ client.on('ready', () => {
 
 client.on('message', (msg) => {
 	if(msg.author.id != client.user.id) {
-        // splits msg content into array by spaces
-        const content = msg.content.split(' ');
-        // checks if message starts with prefix
-		if(content[0] === prefix) {
+		// checks for command prefix
+		if(msg.content.startsWith(config.prefix)) {
+			// removes prefix and splits msg content into array by spaces
+			const content = msg.content.substring(config.prefix.length).split(' ');
 			// commands can be called within a DM, be careful when trying to access guild
 
             // makes sure command exists
-			if(!client.commands.has(content[1])) {
+			if(!client.commands.has(content[0])) {
 				msg.reply('Command does not exist');
 				return;
 			}
-
-            // tries to execute command, replies with error if error
+			// makes sure user has all required permissions before executing command
+			if(!msg.guild.member(msg.author).hasPermission(client.commands.get(content[0]).requiredPermissions)) {
+				msg.reply('You don\'t have permission to use that command');
+				log(`User '${msg.author.tag}' attempted to use command '${content[0]}' without permission.`);
+				return;
+			}
+			// tries to execute command, replies with error if error
             try{
                 // defines args for commands
-				const args = { client: client, content: content, config: config, updateConfig: updateConfig };
-				client.commands.get(content[1]).execute(msg, args);
+				const args = {
+					client: client,
+					content: content,
+					config: config,
+					updateConfig: updateConfig,
+				};
+				client.commands.get(content[0]).execute(msg, args);
             }
             catch(error) {
 				console.error(error);
-				msg.reply(`Error executing command: ${content[1]}`);
+				msg.reply(`Error executing command: ${content[0]}`);
+				log(`There was an error executing command: ${content[0]}`);
 			}
 
         }
+
         // ignores everything in DMs besides commands
 		if(msg.channel.type !== 'text') {
 			return;
 		}
 
-		// checking if message length exceeds config.maxCharactersPerMessage
-		if(msg.content.length > config.maxCharactersPerMessage) {
-			msg.reply(`Please use a website such as https://pastebin.com/ for messages above ${config.maxCharactersPerMessage} characters`)
-				.then((reply) => {reply.delete({ timeout: 5000 });})
-				.catch(console.error);
-            msg.author.send(`Please use a website such as https://pastebin.com/ for messages above ${config.maxCharactersPerMessage} characters`);
-            // TODO: deletes long message for now, maybe later upload to pastebin automatically
-			msg.delete();
-		}
-
+		// checks if message exceeds config.maxCharactersPerMessage
+		checkMessageLength(msg);
         // blacklistedWords checking
-		for(let i = 0; i < config.blacklistedWords.length; i++) {
-			if(msg.content.toLowerCase().includes(config.blacklistedWords[i].toLowerCase())) {
-				msg.author.send(`Blacklisted word detected: '${config.blacklistedWords[i]}'`);
-				msg.delete();
+		checkBlacklistedWords(msg);
+		// file checking: checks for allowed/disallowed filetypes and scans certain file types with virustotal
+		checkFile(msg);
+	}
+});
+
+// checking if message length exceeds config.maxCharactersPerMessage
+function checkMessageLength(msg) {
+	if(msg.content.length > config.maxCharactersPerMessage) {
+		msg.reply(`Please use a website such as https://pastebin.com/ for messages above ${config.maxCharactersPerMessage} characters`)
+			.then((reply) => {reply.delete({ timeout: 5000 });})
+			.catch(console.error);
+		msg.author.send(`Please use a website such as https://pastebin.com/ for messages above ${config.maxCharactersPerMessage} characters`);
+		// TODO: deletes long message for now, maybe later upload to pastebin automatically
+		msg.delete();
+	}
+}
+
+// checks if blacklisted word is detected
+function checkBlacklistedWords(msg) {
+	for(let i = 0; i < config.blacklistedWords.length; i++) {
+		if(msg.content.toLowerCase().includes(config.blacklistedWords[i].toLowerCase())) {
+			msg.author.send(`Blacklisted word detected: '${config.blacklistedWords[i]}'`);
+			msg.delete();
+			break;
+		}
+	}
+}
+
+// returns whether a user can post a filetype or not
+function checkFile(msg) {
+	if(msg.attachments.first()) {
+		let immune = false;
+
+		// ignores file checking if user is immune
+		for(let i = 0; i < config.immuneUsers.length; i++) {
+			if(msg.author.id === config.immuneUsers[i]) {
+				immune = true;
 				break;
 			}
 		}
 
-        // file checking: checks for allowed/disallowed filetypes and scans certain file types with virustotal
-		if(msg.attachments.first()) {
-			let immune = false;
-
-            // ignores file checking if user is immune
-			for(let i = 0; i < config.immuneUsers.length; i++) {
-				if(msg.author.id === config.immuneUsers[i]) {
-					immune = true;
-					break;
-				}
-			}
-
-			const roleIDs = [];
-			for(let i = 0; i < msg.guild.roles.cache.array().length; i++) {
-				roleIDs.push(msg.guild.roles.cache.array()[i].id);
-            }
-            // ignores file checking if user's role is immune
-			for(let i = 0; i < config.immuneRoles.length; i++) {
-				if(roleIDs.includes(config.immuneRoles[i])) {
-					immune = true;
-					break;
-				}
-			}
-
-            // splits name of file and extension
-            const split = msg.attachments.first().name.split('.');
-            // checks if user is allowed to post a specific file extention
-            if(!immune) {
-                // checks if file has extension
-				if(split.length === 1) {
-					msg.author.send('Files with no extension are not allowed.');
-					msg.delete();
-                }
-                else{
-                    // compare file type to each file type in allowedFiletypes
-					for(let i = 0; i < config.allowedFiletypes.length; i++) {
-						if(split[split.length - 1] === config.allowedFiletypes[i]) {
-							msg.react('👍');
-							scanFile(msg, split);
-							break;
-						}
-                    }
-                    // compare file type to each file type in disallowedFiletypes
-					for(let i = 0; i < config.disallowedFiletypes.length; i++) {
-						if(split[split.length - 1] === config.disallowedFiletypes[i]) {
-							msg.author.send(`You don't have permission to post '.${split[split.length - 1]}' files!`);
-							msg.delete();
-							break;
-						}
-					}
-				}
-            }
-            else{
-				scanFile(msg, split);
+		// ignores file checking if user's role is immune
+		const roleIDs = [];
+		for(let i = 0; i < msg.guild.roles.cache.array().length; i++) {
+			roleIDs.push(msg.guild.roles.cache.array()[i].id);
+		}
+		for(let i = 0; i < config.immuneRoles.length; i++) {
+			if(roleIDs.includes(config.immuneRoles[i])) {
+				immune = true;
+				break;
 			}
 		}
+
+		// splits name of file and extension
+		const split = msg.attachments.first().name.split('.');
+		// checks if user is allowed to post a specific file extention
+		if(!immune) {
+			// checks if file has extension
+			if(split.length === 1) {
+				msg.author.send('Files with no extension are not allowed.');
+				msg.delete();
+			}
+			else{
+				// compare file type to each file type in allowedFiletypes
+				for(let i = 0; i < config.allowedFiletypes.length; i++) {
+					if(split[split.length - 1] === config.allowedFiletypes[i]) {
+						msg.react('👍');
+						scanFile(msg, split);
+						break;
+					}
+				}
+				// compare file type to each file type in disallowedFiletypes
+				for(let i = 0; i < config.disallowedFiletypes.length; i++) {
+					if(split[split.length - 1] === config.disallowedFiletypes[i]) {
+						msg.author.send(`You don't have permission to post '.${split[split.length - 1]}' files!`);
+						msg.delete();
+						break;
+					}
+				}
+			}
+		}
+		else{
+			scanFile(msg, split);
+		}
 	}
-});
+}
 
 // checks if file type is included in config.virustotalFiletypes, scans it with virustotal and returns the result in chat if true
 function scanFile(msg, split) {
@@ -304,7 +328,8 @@ async function virustotal(message, dir) {
 					}, config.virustotalRetryTime * 1000);
 				}
             });
-            // edit the multiplied amount to change the time relative to filesize to wait
+			// edit the multiplied amount to change the time relative to filesize to wait
+			// **TODO: scale the multiplier with the filesize
 		}, (stats['size'] / 1000) * 2);
 	});
     const form = req.form();
@@ -428,6 +453,10 @@ function editEmbed(message, field, edit) {
 	}
 }
 
+function sendEmbed(msg, content, color) {
+
+}
+
 // returns hex color in #ffffff form using a number between 0-70 (0 is brightest green, 70 is brightest red) used for virustotal embeds
 function resolveColor(num) {
 	switch(true) {
@@ -452,6 +481,13 @@ function resolveColor(num) {
 	}
 }
 
+// logs a specified message to the console and a logs text channel
+// todo
+function log(msg, message) {
+	console.log(message);
+}
+log('test');
+
 client.login(process.env.DiscordToken);
 
 /* TODO:
@@ -467,14 +503,15 @@ client.login(process.env.DiscordToken);
         -switch to virustotal API v3
         -allow files larger than 32MB to be uploaded using the get link feature of the virustotal API
         -add timestamp for getting report / scan finished
-
         -(ongoing) try and calculate how long it'll take to scan a file, to reduce the time it takes for the result to be put into discord
         -(bug) sometimes 'download started' / 'download finished' will not show in the embed
+		-check if file hash already exists on virustotal before uploading
 
     may need to introduce classes on a larger scale in case the bot is being used on multiple discord servers (later)
-    add commands to edit each config file entry
+    (ongoing) add commands to edit each config file entry
     log more in console
     whenever a file/msg is deleted, log it to a text channel (optional in config.json)
+	allow files without an extension to be scanned
 
 */
 
