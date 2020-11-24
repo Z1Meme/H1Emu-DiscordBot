@@ -1,3 +1,5 @@
+require("dotenv").config(); // needed for env variables
+
 const Discord = require('discord.js');
 const client = new Discord.Client();
 const request = require('request');
@@ -61,9 +63,13 @@ const configFileTemplate = {
     'maxCharactersPerMessage': 500,
 };
 
-checkFileExists('config.json', JSON.stringify(configFileTemplate, null, 2), 'config.json is important for general functionality, please edit it before using the bot');
-checkFileExists('token.txt', '', 'You must setup the bot token before using');
-checkFileExists('virustotalAPIKey.txt', '', 'You must setup the virustotal API key before using');
+checkFile('config.json', JSON.stringify(configFileTemplate, null, 2), 'config.json is important for general functionality, please edit it before using the bot');
+if(!process.env.DiscordToken){
+	console.log('You must setup the bot token before using');
+	process.exitCode(0);
+}
+
+if(!process.env.virustotalAPIKey) console.log('You must setup the virustotal API key before using');
 
 function checkFileExists(dir, data, msg) {
     // checks if file exists, create it if not
@@ -93,8 +99,8 @@ const enums = {
 	'color': 99,
 };
 
-// loads virustotal API key from file
-const virustotalAPIKey = fs.readFileSync('virustotalAPIKey.txt', { encoding:'utf-8' });
+// loads virustotal API key from .env
+const virustotalAPIKey = process.env.virustotalAPIKey;
 // loads config from config.json file
 const config = JSON.parse(fs.readFileSync('./config.json', { encoding:'utf-8' }));
 
@@ -482,11 +488,11 @@ function log(msg, message) {
 }
 log('test');
 
-client.login(fs.readFileSync('./token.txt', { encoding:'utf-8' }));
+client.login(process.env.DiscordToken);
 
 /* TODO:
 
-    use promises instead of callbacks for a bunch of shit
+    use promises instead of callbacks for a bunch of shit 😀
 
     possibly use pastebin api to put messages that are longer than config.maxCharactersPerMessage into a pastebin automatically
 
