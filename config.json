@@ -1,19 +1,5 @@
 {
   "prefix": "z1 ",
-  "allowedFiletypes": [
-    "png",
-    "jpeg",
-    "jpg",
-    "gif",
-    "txt",
-    "log",
-    "json",
-    "ini",
-    "xml",
-    "mp4",
-    "mp3",
-    "a"
-  ],
   "disallowedFiletypes": [
     "exe",
     "dll",
@@ -21,23 +7,48 @@
     "rar",
     "bat",
     "lua",
-    "7z"
+    "7z",
+    "test",
+    "yuh"
   ],
   "virustotalFiletypes": [
     "exe",
     "dll",
     "rar",
     "zip",
-    "7z"
+    "7z",
+    "help",
+    "hello",
+    "testing",
+    "dsfdfg22"
   ],
   "blacklistedWords": [
     "nigga",
     "faggot",
-    "nigger"
+    "hello",
+    "world",
+    "asd",
+    "asdsa",
+    "rewasd",
+    "dawdas",
+    "errasd",
+    "hellotesting",
+    "asdasdadasdasd",
+    "abc",
+    "atasd",
+    "ttt",
+    "nigger",
+    "nigger",
+    "nigger",
+    "aaaaaaaa",
+    "asdasd",
+    "123",
+    "test",
+    "aaaaaa"
   ],
   "immuneUsers": [],
   "immuneRoles": [
-    "656333973496004648"
+    "655143972141924362"
   ],
   "virustotalRetryTime": 10,
   "virustotalRetryCount": 20,

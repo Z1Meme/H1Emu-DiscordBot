@@ -1,5 +1,6 @@
 module.exports = {
-    name: 'ping',
+    name: 'help',
+    aliases: ['help', 'commands'],
     description: 'Responds with bot response time in milliseconds',
     arguments: [],
     requiredPermissions: [],

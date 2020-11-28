@@ -1,4 +1,5 @@
-require("dotenv").config(); // needed for env variables
+// needed for env variables
+require('dotenv').config();
 
 const Discord = require('discord.js');
 const client = new Discord.Client();
@@ -52,7 +53,6 @@ if (!fs.existsSync('./attachments')) {
 // config.json template
 const configFileTemplate = {
     'prefix': 'z1',
-    'allowedFiletypes': [],
     'disallowedFiletypes': [],
     'virustotalFiletypes': [],
     'blacklistedWords': [],
@@ -63,8 +63,8 @@ const configFileTemplate = {
     'maxCharactersPerMessage': 500,
 };
 
-checkFile('config.json', JSON.stringify(configFileTemplate, null, 2), 'config.json is important for general functionality, please edit it before using the bot');
-if(!process.env.DiscordToken){
+checkFileExists('config.json', JSON.stringify(configFileTemplate, null, 2), 'config.json is important for general functionality, please edit it before using the bot');
+if(!process.env.DiscordToken) {
 	console.log('You must setup the bot token before using');
 	process.exitCode(0);
 }
@@ -130,6 +130,11 @@ client.on('message', (msg) => {
 			const content = msg.content.substring(config.prefix.length).split(' ');
 			// commands can be called within a DM, be careful when trying to access guild
 
+			// ignores everything in DMs
+			if(msg.channel.type !== 'text') {
+				return;
+			}
+
             // makes sure command exists
 			if(!client.commands.has(content[0])) {
 				msg.reply('Command does not exist');
@@ -158,11 +163,6 @@ client.on('message', (msg) => {
 				log(`There was an error executing command: ${content[0]}`);
 			}
 
-        }
-
-        // ignores everything in DMs besides commands
-		if(msg.channel.type !== 'text') {
-			return;
 		}
 
 		// checks if message exceeds config.maxCharactersPerMessage
@@ -202,7 +202,7 @@ function checkFile(msg) {
 	if(msg.attachments.first()) {
 		let immune = false;
 
-		// ignores file checking if user is immune
+		// ignores file deletion if user is immune
 		for(let i = 0; i < config.immuneUsers.length; i++) {
 			if(msg.author.id === config.immuneUsers[i]) {
 				immune = true;
@@ -210,13 +210,9 @@ function checkFile(msg) {
 			}
 		}
 
-		// ignores file checking if user's role is immune
-		const roleIDs = [];
-		for(let i = 0; i < msg.guild.roles.cache.array().length; i++) {
-			roleIDs.push(msg.guild.roles.cache.array()[i].id);
-		}
+		// ignores file deletion if user's role is immune
 		for(let i = 0; i < config.immuneRoles.length; i++) {
-			if(roleIDs.includes(config.immuneRoles[i])) {
+			if(msg.member.roles.cache.find(r => r.id === config.immuneRoles[i])) {
 				immune = true;
 				break;
 			}
@@ -232,6 +228,7 @@ function checkFile(msg) {
 				msg.delete();
 			}
 			else{
+				/*
 				// compare file type to each file type in allowedFiletypes
 				for(let i = 0; i < config.allowedFiletypes.length; i++) {
 					if(split[split.length - 1] === config.allowedFiletypes[i]) {
@@ -240,6 +237,7 @@ function checkFile(msg) {
 						break;
 					}
 				}
+				*/
 				// compare file type to each file type in disallowedFiletypes
 				for(let i = 0; i < config.disallowedFiletypes.length; i++) {
 					if(split[split.length - 1] === config.disallowedFiletypes[i]) {
@@ -454,7 +452,7 @@ function editEmbed(message, field, edit) {
 }
 
 function sendEmbed(msg, content, color) {
-
+	// todo
 }
 
 // returns hex color in #ffffff form using a number between 0-70 (0 is brightest green, 70 is brightest red) used for virustotal embeds
