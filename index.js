@@ -63,7 +63,7 @@ const configFileTemplate = {
     'maxCharactersPerMessage': 500,
 };
 
-checkFile('config.json', JSON.stringify(configFileTemplate, null, 2), 'config.json is important for general functionality, please edit it before using the bot');
+checkFileExists('config.json', JSON.stringify(configFileTemplate, null, 2), 'config.json is important for general functionality, please edit it before using the bot');
 if(!process.env.DiscordToken){
 	console.log('You must setup the bot token before using');
 	process.exitCode(0);
@@ -483,7 +483,7 @@ function resolveColor(num) {
 
 // logs a specified message to the console and a logs text channel
 // todo
-function log(msg, message) {
+function log(message) {
 	console.log(message);
 }
 log('test');
