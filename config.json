@@ -1,5 +1,5 @@
 {
-  "prefix": "z1 ",
+  "prefix": "z1",
   "disallowedFiletypes": [
     "exe",
     "dll",
@@ -46,7 +46,9 @@
     "test",
     "aaaaaa"
   ],
-  "immuneUsers": [],
+  "immuneUsers": [
+    "158678807929159682"
+  ],
   "immuneRoles": [
     "655143972141924362"
   ],

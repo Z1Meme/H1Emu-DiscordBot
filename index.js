@@ -63,14 +63,58 @@ const configFileTemplate = {
     'maxCharactersPerMessage': 500,
 };
 
-checkFileExists('config.json', JSON.stringify(configFileTemplate, null, 2), 'config.json is important for general functionality, please edit it before using the bot');
+// checks if config.json exists and contains all fields, if not, creates and/or updates it
+if(fileExists('config.json')) {
+	console.log('\'config.json\' exists');
+	const cfg = JSON.parse(fs.readFileSync('./config.json', { encoding:'utf-8' }));
+	let update = false;
+	for(const attributename in configFileTemplate) {
+		if(!cfg[attributename]) {
+			console.log(`${attributename} not found in config.json, adding it with default value: ${configFileTemplate[attributename]}`);
+			cfg[attributename] = configFileTemplate[attributename];
+			update = true;
+		}
+	}
+	if(update) {
+		console.log('Some fields are missing in config.json, updating');
+		fs.writeFileSync(`./${'config.json'}`, JSON.stringify(cfg, null, 2));
+	}
+	else {
+		console.log('All fields found in config.json');
+	}
+}
+else {
+	fs.writeFileSync('./config.json', JSON.stringify(configFileTemplate, null, 2));
+	console.log('\'config.json\' file not found, creating it using default values');
+	console.log('config.json is important for general functionality, please edit it before using the bot');
+}
+
+// checks for bot token, exits process if not found
 if(!process.env.DiscordToken) {
 	console.log('You must setup the bot token before using');
 	process.exitCode(0);
 }
 
+// checks for virustotal api key
 if(!process.env.virustotalAPIKey) console.log('You must setup the virustotal API key before using');
 
+// returns true if specified file exists
+function fileExists(dir) {
+	try {
+		if (fs.existsSync(`./${dir}`)) {
+			return true;
+        }
+        else{
+			return false;
+		}
+    }
+    catch(err) {
+		console.error(`There was an issue in determining if config.json exists, aborting. ${err}`);
+		process.exitCode(0);
+	}
+}
+
+/*
 function checkFileExists(dir, data, msg) {
     // checks if file exists, create it if not
 	try {
@@ -89,6 +133,7 @@ function checkFileExists(dir, data, msg) {
 		console.error(err);
 	}
 }
+*/
 
 // move enums to another file
 const enums = {
@@ -176,7 +221,7 @@ client.on('message', (msg) => {
 
 // checking if message length exceeds config.maxCharactersPerMessage
 function checkMessageLength(msg) {
-	if(msg.content.length > config.maxCharactersPerMessage) {
+	if(msg.content.length > config.maxCharactersPerMessage && !msg.guild.member(msg.author).hasPermission('MANAGE_MESSAGES')) {
 		msg.reply(`Please use a website such as https://pastebin.com/ for messages above ${config.maxCharactersPerMessage} characters`)
 			.then((reply) => {reply.delete({ timeout: 5000 });})
 			.catch(console.error);
@@ -228,16 +273,6 @@ function checkFile(msg) {
 				msg.delete();
 			}
 			else{
-				/*
-				// compare file type to each file type in allowedFiletypes
-				for(let i = 0; i < config.allowedFiletypes.length; i++) {
-					if(split[split.length - 1] === config.allowedFiletypes[i]) {
-						msg.react('👍');
-						scanFile(msg, split);
-						break;
-					}
-				}
-				*/
 				// compare file type to each file type in disallowedFiletypes
 				for(let i = 0; i < config.disallowedFiletypes.length; i++) {
 					if(split[split.length - 1] === config.disallowedFiletypes[i]) {
@@ -347,6 +382,13 @@ function getVirustotalResult(body, message, retrys, _callback) {
 		}
 		if(err) {
 			message.reply(`ERROR: ${err}`);
+			_callback(true);
+			return;
+		}
+
+		// todo: find why this bug happens and fix it instead of doing this hack-y fix
+		if(message.content.includes('[Scan results]')) {
+			console.log('[Warning] Virustotal scan was completed, but the bot continued to retrieve scan results, aborted.');
 			_callback(true);
 			return;
 		}
