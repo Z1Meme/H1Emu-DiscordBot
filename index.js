@@ -114,27 +114,6 @@ function fileExists(dir) {
 	}
 }
 
-/*
-function checkFileExists(dir, data, msg) {
-    // checks if file exists, create it if not
-	try {
-		if (fs.existsSync(`./${dir}`)) {
-            // file exists
-            console.log(`'${dir}' exists`);
-            // create file and write data to it
-        }
-        else{
-			fs.writeFileSync(`./${dir}`, data);
-			console.log(`'${dir}' file not found, creating it.\n${msg}`);
-			return;
-		}
-    }
-    catch(err) {
-		console.error(err);
-	}
-}
-*/
-
 // move enums to another file
 const enums = {
 	// editEmbed field
@@ -387,7 +366,7 @@ function getVirustotalResult(body, message, retrys, _callback) {
 		}
 
 		// todo: find why this bug happens and fix it instead of doing this hack-y fix
-		if(message.content.includes('[Scan results]')) {
+		if(message.content.includes('Scan results')) {
 			console.log('[Warning] Virustotal scan was completed, but the bot continued to retrieve scan results, aborted.');
 			_callback(true);
 			return;
