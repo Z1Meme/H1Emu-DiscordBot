@@ -366,7 +366,7 @@ function getVirustotalResult(body, message, retrys, _callback) {
 		}
 
 		// todo: find why this bug happens and fix it instead of doing this hack-y fix
-		if(message.content.includes('Scan results')) {
+		if(message.content.includes('Scan results') || message.content.includes('Scan finished')) {
 			console.log('[Warning] Virustotal scan was completed, but the bot continued to retrieve scan results, aborted.');
 			_callback(true);
 			return;
