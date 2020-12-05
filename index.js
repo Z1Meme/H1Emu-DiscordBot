@@ -57,9 +57,10 @@ const configFileTemplate = {
     'virustotalFiletypes': [],
     'blacklistedWords': [],
     'immuneUsers': [],
-    'immuneRoles': [],
-    'virustotalRetryTime': 10,
-    'virustotalRetryCount': 3,
+	'immuneRoles': [],
+	'virustotalScanningEnabled': true,
+    'virustotalRetryTime': 30,
+    'virustotalRetryCount': 10,
     'maxCharactersPerMessage': 500,
 };
 
@@ -172,14 +173,7 @@ client.on('message', (msg) => {
 			}
 			// tries to execute command, replies with error if error
             try{
-                // defines args for commands
-				const args = {
-					client: client,
-					content: content,
-					config: config,
-					updateConfig: updateConfig,
-				};
-				client.commands.get(content[0]).execute(msg, args);
+				client.commands.get(content[0]).execute(msg, { client, content, config, updateConfig });
             }
             catch(error) {
 				console.error(error);
@@ -193,7 +187,7 @@ client.on('message', (msg) => {
 		checkMessageLength(msg);
         // blacklistedWords checking
 		checkBlacklistedWords(msg);
-		// file checking: checks for allowed/disallowed filetypes and scans certain file types with virustotal
+		// file checking: checks for disallowed filetypes and scans certain file types with virustotal
 		checkFile(msg);
 	}
 });
@@ -252,13 +246,18 @@ function checkFile(msg) {
 				msg.delete();
 			}
 			else{
+				let deleted = false;
 				// compare file type to each file type in disallowedFiletypes
 				for(let i = 0; i < config.disallowedFiletypes.length; i++) {
 					if(split[split.length - 1] === config.disallowedFiletypes[i]) {
 						msg.author.send(`You don't have permission to post '.${split[split.length - 1]}' files!`);
 						msg.delete();
+						deleted = true;
 						break;
 					}
+				}
+				if(!deleted) {
+					scanFile(msg, split);
 				}
 			}
 		}
@@ -270,11 +269,15 @@ function checkFile(msg) {
 
 // checks if file type is included in config.virustotalFiletypes, scans it with virustotal and returns the result in chat if true
 function scanFile(msg, split) {
+	// disables virustotal scanning if disabled in config
+	if(!config.virustotalScanningEnabled) {
+		return;
+	}
 	for(let i = 0; i < config.virustotalFiletypes.length; i++) {
 		if(split[split.length - 1] === config.virustotalFiletypes[i]) {
 			const virustotalEmbed = new Discord.MessageEmbed()
 				.setTitle(msg.attachments.first().name)
-				.setColor(0xfafafa)
+				.setColor(0xffffff)
 				.setAuthor('VirusTotal Scan', 'https://pbs.twimg.com/profile_images/903041019331174400/BIaetD1J_200x200.jpg')
 				.setDescription('')
 				.setTimestamp(new Date())
@@ -282,17 +285,20 @@ function scanFile(msg, split) {
 
             // sends original virustotal embed
 			msg.channel.send({ embed: virustotalEmbed }).then((message)=>{
-				download(message, msg.attachments.first().url, msg.attachments.first().name, ()=>{
-					virustotal(message, `./attachments/${msg.attachments.first().name}`);
+				const startTime = Date.now();
+				editEmbed(message, enums.descriptionCodeBlock, 'Download started...');
+				downloadFile(msg.attachments.first().url, msg.attachments.first().name, ()=>{
+					editEmbed(message, enums.descriptionCodeBlockReplaceLastLine, `Download finished: ${Date.now() - startTime}ms`);
+					postVirustotalFile(message, `./attachments/${msg.attachments.first().name}`);
 				});
 			});
 		}
 	}
 }
 
-// scans file with virustotal and returns file report
-async function virustotal(message, dir) {
-    // checks if file is over 32 MB
+// posts file to virustotal using v3 api
+async function postVirustotalFile(message, dir) {
+	// checks if file is over 32 MB
 	const stats = fs.statSync(dir);
 	if(stats['size'] >= 32000000) {
 		editEmbed(message, enums.descriptionCodeBlock, 'Files 32 Megabytes and above in size are not yet supported, aborting');
@@ -302,9 +308,11 @@ async function virustotal(message, dir) {
 	}
 
 	const time = Date.now();
-    editEmbed(message, enums.descriptionCodeBlock, 'VirusTotal upload started...');
+	editEmbed(message, enums.descriptionCodeBlock, 'VirusTotal upload started...');
+	console.log(`Virustotal upload started: '${dir}'`);
+
     // uploads file and gets report link
-	const req = request.post('http://www.virustotal.com/vtapi/v2/file/scan', (err, res, body) => {
+	const req = request.post({ url: 'https://www.virustotal.com/api/v3/files', headers: { 'x-apikey': virustotalAPIKey } }, (err, res, body) => {
 		if(err) {
 			message.reply(`err: ${err}`);
 			return;
@@ -312,6 +320,7 @@ async function virustotal(message, dir) {
 
 		body = JSON.parse(body);
 		editEmbed(message, enums.descriptionCodeBlockReplaceLastLine, `VirusTotal upload finished: ${Date.now() - time}ms\nGetting report...`);
+		console.log(`Virustotal upload finished: '${dir}' [${Date.now() - time}ms]`);
 
         console.log(`Deleting leftover file: ${dir}`);
         // deletes leftover file from 'attachments' folder
@@ -322,94 +331,75 @@ async function virustotal(message, dir) {
 			}
         });
 
-        // first attempt at getting virustotal report
-		setTimeout(()=>{
-            let retrys = 0;
-            // TODO: fix callback hell
-            getVirustotalResult(body, message, retrys, (done) => {
-                // if scan isn't finished first time around, start retrying every config.virustotalRetryTime seconds
-				if(!done) {
-					const interval = setInterval(() => {
-						retrys++;
-						getVirustotalResult(body, message, retrys, () => {
-                            // stops retrying if scan returns a value or errors out
-							if(done) {
-								clearInterval(interval);
-							}
-						});
-					}, config.virustotalRetryTime * 1000);
-				}
-            });
-			// edit the multiplied amount to change the time relative to filesize to wait
-			// **TODO: scale the multiplier with the filesize
-		}, (stats['size'] / 1000) * 2);
+		getVirustotalResult(body.data.id, message, 0, stats['size']);
 	});
+
     const form = req.form();
-    // adds apikey to file scan post request
-    form.append('apikey', virustotalAPIKey);
     // adds file to file scan post request
 	form.append('file', fs.createReadStream(dir));
 }
 
-function getVirustotalResult(body, message, retrys, _callback) {
-    // gets report
-	request.get({ url: 'http://www.virustotal.com/vtapi/v2/file/report', useQuerystring: true, qs: { apikey: virustotalAPIKey, resource: body.resource } }, (err, res, reportBody) => {
-		if (retrys > config.virustotalRetryCount) {
-			editEmbed(message, enums.descriptionCodeBlockReplaceLastLine, 'Request timed out');
-			_callback(true);
-			return;
-		}
-		if(err) {
-			message.reply(`ERROR: ${err}`);
-			_callback(true);
-			return;
-		}
+// gets virustotal result using v3 api
+function getVirustotalResult(id, message, retries, fileSize) {
+	let retryTime;
+	if(retries > 0) {
+		retryTime = config.virustotalRetryTime * 1000;
+	}
+	else {
+		retryTime = 10000 + ((fileSize / 1000) * 2);
+	}
 
-		// todo: find why this bug happens and fix it instead of doing this hack-y fix
-		if(message.content.includes('Scan results') || message.content.includes('Scan finished')) {
-			console.log('[Warning] Virustotal scan was completed, but the bot continued to retrieve scan results, aborted.');
-			_callback(true);
-			return;
-		}
+	retries++;
+	if (retries > config.virustotalRetryCount) {
+		editEmbed(message, enums.descriptionCodeBlockReplaceLastLine, 'Request timed out');
+		return;
+	}
+	setTimeout(() => {
+		// gets report
+		request.get({ url: `https://www.virustotal.com/api/v3/analyses/${id}`, headers: { 'x-apikey': virustotalAPIKey } }, (err, res, reportBody) => {
+			if(err) {
+				message.reply(`ERROR: ${err}`);
+				return;
+			}
 
-        // if reportBody is null, we're probably making too many requests in a short time
-        if(reportBody) {
-			reportBody = JSON.parse(reportBody);
-        }
-        else{
-			// console.log('FORCING TIMEOUT');//need to handle this better (TODO)
-			// console.log('retrying');
-			editEmbed(message, enums.descriptionCodeBlockReplaceLastLine, `Report not ready, retrying in ${config.virustotalRetryTime} seconds [${retrys}].`);
-			_callback(false);
-			return;
-		}
-
-		if(body.sha256 !== reportBody.sha256) {
-			editEmbed(message, enums.descriptionCodeBlockReplaceLastLine, `Report not ready, retrying in ${config.virustotalRetryTime} seconds [${retrys}].`);
-			_callback(false);
-        }
-        else{
-            console.log('Scan finished, no longer retrying');
-			editEmbed(message, enums.descriptionCodeBlockReplaceLastLine, `Scan finished, positives: ${reportBody.positives} / ${reportBody.total}\nFull report below:`);
-			editEmbed(message, enums.description, `[Scan results](${reportBody.permalink})`);
-            editEmbed(message, enums.color, resolveColor(reportBody.positives));
-            // returns true to indicate that the scan is finished
-			_callback(true);
-		}
-	});
+			// sends error in discord if error
+			if(reportBody.error) {
+				editEmbed(message, enums.descriptionCodeBlockReplaceLastLine, `${reportBody.error.code}: ${reportBody.error.message}`);
+				return;
+			}
+			if(!reportBody) {
+				console.log('getVirustotalResult Error: reportBody is not defined');
+				editEmbed(message, enums.descriptionCodeBlockReplaceLastLine, `Error, retrying in ${config.virustotalRetryTime} seconds [${retries}].`);
+				// retries
+				getVirustotalResult(id, message, retries, fileSize);
+			}
+			else{
+				reportBody = JSON.parse(reportBody);
+				if(reportBody.data.attributes.status === 'queued') {
+					console.log(`File status: ${reportBody.data.attributes.status}\nId: ${reportBody.meta.file_info.md5}`);
+					editEmbed(message, enums.descriptionCodeBlockReplaceLastLine, `Report not ready, retrying in ${config.virustotalRetryTime} seconds [${retries}].`);
+					// retries
+					getVirustotalResult(id, message, retries, fileSize);
+				}
+				else {
+					console.log('Scan finished, no longer retrying');
+					editEmbed(message, enums.descriptionCodeBlockReplaceLastLine, `Scan finished, positives: ${reportBody.data.attributes.stats.malicious} / 70\nFull report below:`);
+					editEmbed(message, enums.description, `[Scan results](https://www.virustotal.com/gui/file/${reportBody.meta.file_info.md5}/detection)`);
+					editEmbed(message, enums.color, resolveColor(reportBody.data.attributes.stats.malicious));
+				}
+			}
+		});
+	}, retryTime);
 }
 
 // downloads file, executes callback after download is finished
-function download(message, url, name, _callback) {
-	const time = Date.now();
-	editEmbed(message, enums.descriptionCodeBlock, 'Download started...');
+function downloadFile(url, name, _callback) {
 	const file = fs.createWriteStream(`./attachments/${name}`);
 	request.get(url)
 		.on('error', console.error)
 		.pipe(file);
 	file.on('finish', function() {
 		file.close(() => {
-			editEmbed(message, enums.descriptionCodeBlockReplaceLastLine, `Download finished: ${Date.now() - time}ms`);
 			_callback();
 		});
 	});
@@ -472,9 +462,11 @@ function editEmbed(message, field, edit) {
 	}
 }
 
+/*
 function sendEmbed(msg, content, color) {
 	// todo
 }
+*/
 
 // returns hex color in #ffffff form using a number between 0-70 (0 is brightest green, 70 is brightest red) used for virustotal embeds
 function resolveColor(num) {
@@ -505,7 +497,7 @@ function resolveColor(num) {
 function log(msg, message) {
 	console.log(message);
 }
-log('test');
+log(null, 'test');
 
 client.login(process.env.DiscordToken);
 
@@ -518,10 +510,7 @@ client.login(process.env.DiscordToken);
     Virustotal:
         -introduce file 'queueing' so multiple files can be scanned at once if multiple files are posted back-to-back
         -each message should update normally when multiple files are queued
-        -may need to use classes?
-        -switch to virustotal API v3
         -allow files larger than 32MB to be uploaded using the get link feature of the virustotal API
-        -add timestamp for getting report / scan finished
         -(ongoing) try and calculate how long it'll take to scan a file, to reduce the time it takes for the result to be put into discord
         -(bug) sometimes 'download started' / 'download finished' will not show in the embed
 		-check if file hash already exists on virustotal before uploading
@@ -531,6 +520,9 @@ client.login(process.env.DiscordToken);
     log more in console
     whenever a file/msg is deleted, log it to a text channel (optional in config.json)
 	allow files without an extension to be scanned
+
+	while an embed is actively being edited, store the description in a variable and edit that var instead of the description directly
+	(might fix the missing 'download finished' / 'virustotal upload finished' bug)
 
 */
 
