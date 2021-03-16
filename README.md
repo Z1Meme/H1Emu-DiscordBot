@@ -1,4 +1,4 @@
-# Z1NewHope-DiscordBot
+# H1Emu-DiscordBot
 
 create a file called '.env' and copy paste these lines:
 
