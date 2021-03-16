@@ -5,11 +5,7 @@ module.exports = {
     description: 'Sets a specified field\'s value in bot config',
     arguments: ['<field>', '<value>'],
     requiredPermissions: ['MANAGE_MESSAGES'],
-    execute(msg, args) {
-        const content = args.content;
-        const config = args.config;
-        const updateConfig = args.updateConfig;
-
+    execute(msg, { content, config, updateConfig }) {
         if(content.length < module.exports.arguments.length + 1) {
             msg.reply(`Missing parameter ${module.exports.arguments[content.length - 1]}`);
             return;

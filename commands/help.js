@@ -1,10 +1,10 @@
 module.exports = {
     name: 'help',
     aliases: ['help', 'commands'],
-    description: 'Responds with bot response time in milliseconds',
+    description: 'Responds with a full list of commands',
     arguments: [],
     requiredPermissions: [],
-    execute(msg, args) {
-        msg.reply('todo', args);
+    execute(msg, { content }) {
+        msg.reply('todo', content[0]);
     },
 };
